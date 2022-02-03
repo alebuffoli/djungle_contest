@@ -2,7 +2,7 @@ import pytest
 from api.models import Contest
 from api.tests.utilities import create_contest
 from api.utilities import get_contest, check_contest_validity, get_prizes_remaining, \
-    is_prize_available, has_won, increase_winnings, probability_to_win
+    is_prize_available, has_won, increase_total_winnings, probability_to_win
 from djungle_contest.api_exception import ContestNotActiveException, ContestNotFoundException
 
 code = str(1).zfill(4)
@@ -53,7 +53,7 @@ def test_prize_not_available():
     contest = create_contest(45, code)
     win_per_day = get_prizes_remaining(contest)
     for w in range(45):
-        increase_winnings(win_per_day)
+        increase_total_winnings(win_per_day)
     win_per_day = get_prizes_remaining(contest)
 
     assert is_prize_available(win_per_day, contest) is False
@@ -70,6 +70,6 @@ def test_probability():
 def test_has_won():
     contest = create_contest(1, code)
     win_per_day = get_prizes_remaining(contest)
-    assert type(has_won(contest, win_per_day)) == bool
+    assert type(has_won(contest, win_per_day, None)) == bool
 
 

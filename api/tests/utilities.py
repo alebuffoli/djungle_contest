@@ -1,8 +1,11 @@
-from api.models import Prize, Contest
+from api.models import Prize, Contest, UserToContest
 from datetime import datetime, timedelta, date
 from django.utils import timezone
 import pytest
 from api.utilities import n_requests_estimate
+from django.contrib.auth.models import User
+from django.urls import reverse
+url_auth = reverse('token_obtain_pair')
 
 
 json_contest_not_active = {
@@ -17,7 +20,7 @@ json_contest_not_found = {
     "error": {
         "status": "404",
         "title": "Contest not found",
-        "detail": "Contest code C0003 not found."
+        "detail": "Contest code C9999 not found."
     }
 }
 
@@ -41,8 +44,15 @@ def create_contests():
                            end=end - timedelta(days=100),
                            prize=prize)
 
+    Contest.objects.create(code=f'C0003',
+                           name='Vinci uno sconto',
+                           start=start,
+                           end=end,
+                           prize=prize,
+                           auth_required=True)
 
-def create_contest(wins_per_day, code, expired=False):
+
+def create_contest(wins_per_day, code, expired=False, auth_required=False, wmax_per_user=None):
     prize = Prize.objects.create(code='five-percent_discount', perday=wins_per_day, name='Sconto del 5%')
 
     start = date.today().replace(day=1)
@@ -56,7 +66,9 @@ def create_contest(wins_per_day, code, expired=False):
                                   name='Vinci uno sconto',
                                   start=start,
                                   end=end,
-                                  prize=prize)
+                                  prize=prize,
+                                  auth_required=auth_required,
+                                  wmax_per_user=wmax_per_user)
 
 
 def last_day_of_month(any_day):
@@ -85,3 +97,35 @@ def run_multiple_contest(client, url, wins_per_day, contests):
     print(f'\n\nRan {contests} contests, {contests_failed} have not distribute all the prizes.\n\n')
 
     return contests_failed
+
+
+def create_users():
+    User.objects.create_user('user1', 'user1@gmail.com', 'testing321').save()
+    User.objects.create_user('user2', 'user2@gmail.com', 'testing321').save()
+    return User.objects.filter(username='user1').first()
+
+
+def login_user(client):
+    data = {"username": "user1", "password": "testing321"}
+    return client.post(url_auth, data)
+
+
+def login_user2(client):
+    data = {"username": "user2", "password": "testing321"}
+    return client.post(url_auth, data)
+
+
+@pytest.mark.django_db(transaction=True)
+def create_user_to_contest():
+    user = create_users()
+    contest = create_contest(10, '0003', expired=False, auth_required=True)
+    UserToContest.objects.create(contest=contest, user=user)
+    return contest
+
+
+@pytest.mark.django_db(transaction=True)
+def create_user_to_contest_wmax(wmax_per_user=2):
+    user = create_users()
+    contest = create_contest(10, '0003', expired=False, auth_required=True, wmax_per_user=wmax_per_user)
+    UserToContest.objects.create(contest=contest, user=user)
+    return contest

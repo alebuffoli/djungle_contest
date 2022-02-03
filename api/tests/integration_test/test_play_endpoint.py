@@ -13,7 +13,7 @@ def test_no_param(client):
 
 @pytest.mark.django_db
 def test_wrong_param(client):
-    param = '?contest_code=C0003'
+    param = '?contest_code=C9999'
     response = client.get(url + param)
     assert response.status_code == 406
 
@@ -21,7 +21,7 @@ def test_wrong_param(client):
 @pytest.mark.django_db
 def test_contest_not_found(client):
     create_contests()
-    param = '?contest=C0003'
+    param = '?contest=C9999'
     response = client.get(url + param)
     assert response.status_code == 404
     assert response.json() == json_contest_not_found
@@ -46,7 +46,7 @@ def test_contest_active(client):
 
 @pytest.mark.django_db
 def test_contest_winning(client):
-    contests_failed = run_multiple_contest(client, url, 45, 5)
+    contests_failed = run_multiple_contest(client, url, 10, 5)
     assert contests_failed <= 1
 
 

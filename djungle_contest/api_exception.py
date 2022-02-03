@@ -36,3 +36,15 @@ class ContestNotActiveException(APIException):
                 "detail": f'The contest with code {contest_code} is not active.'
             }
         }
+
+
+class WinningsExceededException(APIException):
+    def __init__(self):
+        WinningsExceededException.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+        WinningsExceededException.detail = {
+            "error": {
+                "status": f'{status.HTTP_429_TOO_MANY_REQUESTS}',
+                "title": 'Winnings Exceeded',
+                "detail": f'You exceeded the numbers of winnings of this contest for today.'
+            }
+        }

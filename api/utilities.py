@@ -1,4 +1,6 @@
-from api.models import Contest, WinPerDay
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+
+from api.models import Contest, WinPerDay, UserToContest, UserWinningsPerDay
 from djungle_contest import api_exception
 from datetime import date
 import random
@@ -10,6 +12,21 @@ def get_code(request):
         return request.GET['contest']
     except Exception:
         raise api_exception.ContestCodeRequiredException()
+
+
+def get_user_id(request):
+    user_id = request.GET.get('user_id', None)
+    if not user_id:
+        return
+
+    try:
+        int(user_id)
+    except Exception:
+        raise AuthenticationFailed()
+
+    if user_id and request.user.id != int(user_id):
+        raise AuthenticationFailed()
+    return user_id
 
 
 def get_contest(contest_code):
@@ -48,7 +65,7 @@ def probability_to_win(contest):
     return probability
 
 
-def has_won(contest, win_per_day):
+def has_won(contest, win_per_day, user_id):
     probability = probability_to_win(contest)
     occasion = random.random()
     boost = 0
@@ -56,10 +73,14 @@ def has_won(contest, win_per_day):
     if win_per_day.attempts > n_requests_estimate(contest.prize.perday) * 0.9 and win_per_day.winnings < contest.prize.perday:
         boost = 0.2
 
-    return occasion - boost < probability
+    winning = occasion - boost < probability
+    if winning and contest.wmax_per_user is not None:
+        increase_user_winnings(contest, user_id)
+
+    return winning
 
 
-def increase_winnings(win_per_day):
+def increase_total_winnings(win_per_day):
     win_per_day.winnings += 1
     win_per_day.attempts += 1
     win_per_day.save()
@@ -72,3 +93,36 @@ def increase_attempts(win_per_day):
 
 def n_requests_estimate(winnings):
     return math.pow(winnings, 3)
+
+
+def check_contest_auth(contest, user_id):
+    if not contest.auth_required:
+        return
+    elif contest.auth_required and not user_id:
+        raise PermissionDenied()
+    try:
+        UserToContest.objects.get(user_id=user_id, contest=contest)
+    except Exception as e:
+        print(e)
+        raise PermissionDenied()
+
+
+def increase_user_winnings(contest, user_id):
+    win_per_day = UserWinningsPerDay.objects.filter(contest=contest, day=date.today(), user_id=user_id).first()
+
+    if not win_per_day:
+        UserWinningsPerDay.objects.create(day=date.today(), contest=contest, user_id=user_id)
+    else:
+        win_per_day.winnings += 1
+        win_per_day.save()
+
+
+def can_win(contest, user_id):
+    if user_id:
+        user_winnings = UserWinningsPerDay.objects.filter(contest=contest, day=date.today(), user_id=user_id).first()
+
+        if not user_winnings or user_winnings.winnings < contest.wmax_per_user:
+            return
+
+        raise api_exception.WinningsExceededException()
+

@@ -18,10 +18,19 @@ Run the following commands
 3. `pip install -r requirements.txt`
 4. `python manage.py migrate`
 
-5. `python manage.py create_contest`
+
+
+
+ python manage.py createuser --username=ale --email=ale@ale.com
+
+
+
+
+
+6. `python manage.py create_contest`
    (This command creates 2 contest (C0001 & C0002) with 45 prize per day each. The contest `C0001` is valid, instead the `C0002` is expired.)
 
-6. `python manage.py runserver` Runs the application
+7. `python manage.py runserver` Runs the application
 
 
 _____
