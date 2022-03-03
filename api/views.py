@@ -20,15 +20,8 @@ class PlayView(APIView):
         win_per_day = get_prizes_remaining(contest)
         prize_available = is_prize_available(win_per_day, contest)
 
-        if not prize_available or not has_won(contest, win_per_day, user_id):
-            increase_attempts(win_per_day)
-            content = {
-                "data": {
-                    "winner": False,
-                    "prize": None
-                }
-            }
-        else:
+        # avoid inverted logic
+        if prize_available and has_won(contest, win_per_day, user_id):
             increase_total_winnings(win_per_day)
             content = {
                 "data": {
@@ -37,6 +30,14 @@ class PlayView(APIView):
                         "code": contest.prize.code,
                         "name": contest.prize.name
                     }
+                }
+            }
+        else:
+            increase_attempts(win_per_day)
+            content = {
+                "data": {
+                    "winner": False,
+                    "prize": None
                 }
             }
 
