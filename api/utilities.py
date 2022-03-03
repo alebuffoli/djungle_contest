@@ -1,3 +1,4 @@
+from django.db.models import F
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 
 from api.models import Contest, WinPerDay, UserToContest, UserWinningsPerDay
@@ -50,12 +51,8 @@ def get_prizes_remaining(contest):
 
 
 def is_prize_available(win_per_day, contest):
-    if not win_per_day:
-        return True
-    elif win_per_day.winnings < contest.prize.perday:
-        return True
-
-    return False
+    # try to keep simple
+    return win_per_day.winnings < contest.prize.perday
 
 
 def probability_to_win(contest):
@@ -81,13 +78,13 @@ def has_won(contest, win_per_day, user_id):
 
 
 def increase_total_winnings(win_per_day):
-    win_per_day.winnings += 1
-    win_per_day.attempts += 1
+    win_per_day.winnings = F("winnings") + 1
+    win_per_day.attempts = F("attempts") + 1
     win_per_day.save()
 
 
 def increase_attempts(win_per_day):
-    win_per_day.attempts += 1
+    win_per_day.attempts = F("attempts") + 1
     win_per_day.save()
 
 
@@ -108,20 +105,20 @@ def check_contest_auth(contest, user_id):
 
 
 def increase_user_winnings(contest, user_id):
-    win_per_day = UserWinningsPerDay.objects.filter(contest=contest, day=date.today(), user_id=user_id).first()
+    # use get_or_create
+    user_winnings, _ = UserWinningsPerDay.objects.get_or_create(contest=contest, day=date.today(), user_id=user_id)
 
-    if not win_per_day:
-        UserWinningsPerDay.objects.create(day=date.today(), contest=contest, user_id=user_id)
-    else:
-        win_per_day.winnings += 1
-        win_per_day.save()
+    # manage concurrency in the right way
+    user_winnings.winnings = F('winnings') + 1
+    user_winnings.save()
 
 
 def can_win(contest, user_id):
     if user_id:
         user_winnings = UserWinningsPerDay.objects.filter(contest=contest, day=date.today(), user_id=user_id).first()
 
-        if not user_winnings or user_winnings.winnings < contest.wmax_per_user:
+        # wrong condition or test ?
+        if not user_winnings or user_winnings.winnings <= contest.wmax_per_user:
             return
 
         raise api_exception.WinningsExceededException()

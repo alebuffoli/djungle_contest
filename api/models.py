@@ -41,10 +41,19 @@ class UserToContest(models.Model):
 
 
 class UserWinningsPerDay(models.Model):
-    day = models.DateField(datetime.now())
+    day = models.DateField(auto_now_add=True)
     winnings = models.IntegerField(default=1)
     contest = models.ForeignKey('api.Contest', null=False, on_delete=models.CASCADE)
     user = models.ForeignKey(User, null=False, on_delete=models.CASCADE)
+
+    # add constraints for db integrity
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "contest", "day"),
+                name="unique_user_contest_date",
+            ),
+        ]
 
     def __str__(self):
         return f'{self.user.username} | {self.contest.code}, Winnings ({self.winnings})'
